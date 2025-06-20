@@ -1,3 +1,5 @@
+import streamlit as st
+
 def somar(x, y):
     return x + y
 
@@ -9,44 +11,100 @@ def multiplicar(x, y):
 
 def dividir(x, y):
     if y == 0:
-        return "Erro! Divisão por zero."
+        return "Erro"
     return x / y
 
-def calculadora():
-    print("Selecione a operação:")
-    print("1.Soma")
-    print("2.Subtração")
-    print("3.Multiplicação")
-    print("4.Divisão")
+st.title("Calculadora Estilo Windows")
 
-    while True:
-        escolha = input("Digite sua escolha(1/2/3/4): ")
+# Inicializa o estado da calculadora na sessão
+if 'input' not in st.session_state:
+    st.session_state.input = '0'
+    st.session_state.first_operand = None
+    st.session_state.operator = None
+    st.session_state.waiting_for_second_operand = False
 
-        if escolha in ('1', '2', '3', '4'):
-            try:
-                num1 = float(input("Digite o primeiro número: "))
-                num2 = float(input("Digite o segundo número: "))
-            except ValueError:
-                print("Entrada inválida. Por favor, insira um número.")
-                continue
+# Visor da calculadora
+st.text_input("Visor", value=st.session_state.input, disabled=True, key="visor")
 
-            if escolha == '1':
-                print(num1, "+", num2, "=", somar(num1, num2))
+# Função para processar os cliques nos botões
+def handle_click(value):
+    if value == ' \\* ':
+        value = '*'
+    elif value == ' \\+ ':
+        value = '+'
+    elif value == ' \\- ':
+        value = '-'
 
-            elif escolha == '2':
-                print(num1, "-", num2, "=", subtrair(num1, num2))
-
-            elif escolha == '3':
-                print(num1, "*", num2, "=", multiplicar(num1, num2))
-
-            elif escolha == '4':
-                print(num1, "/", num2, "=", dividir(num1, num2))
-            
-            nova_calculo = input("Deseja fazer outro calculo? (sim/não): ")
-            if nova_calculo.lower() != 'sim':
-                break
+    if value in list('0123456789.'):
+        if st.session_state.waiting_for_second_operand:
+            st.session_state.input = value
+            st.session_state.waiting_for_second_operand = False
         else:
-            print("Entrada Inválida")
+            if st.session_state.input == '0' and value != '.':
+                st.session_state.input = value
+            elif value == '.' and '.' in st.session_state.input:
+                pass  # Impede múltiplos pontos decimais
+            else:
+                st.session_state.input += value
+    
+    elif value in ['+', '-', '*', '/']:
+        # Se o usuário clicar em um operador quando um cálculo já pode ser feito,
+        # calcula o resultado parcial antes de registrar o novo operador.
+        if st.session_state.first_operand is not None and not st.session_state.waiting_for_second_operand:
+            handle_click('=')
 
-if __name__ == "__main__":
-    calculadora() 
+        # Permite trocar o operador se o segundo número ainda não foi digitado
+        if st.session_state.waiting_for_second_operand:
+            st.session_state.operator = value
+            return
+            
+        try:
+            st.session_state.first_operand = float(st.session_state.input)
+            st.session_state.operator = value
+            st.session_state.waiting_for_second_operand = True
+        except ValueError:
+            st.session_state.input = "Erro"
+
+    elif value == '=':
+        if st.session_state.first_operand is None or st.session_state.operator is None or st.session_state.waiting_for_second_operand:
+            return
+        
+        try:
+            second_operand = float(st.session_state.input)
+            
+            ops = {'+': somar, '-': subtrair, '*': multiplicar, '/': dividir}
+            result = ops[st.session_state.operator](st.session_state.first_operand, second_operand)
+
+            # Formata o resultado para remover ".0" de inteiros
+            if isinstance(result, float) and result.is_integer():
+                st.session_state.input = str(int(result))
+            else:
+                st.session_state.input = str(round(result, 8)) # Arredonda para evitar dízimas
+
+            st.session_state.first_operand = result # Mantém o resultado para operações encadeadas
+            st.session_state.operator = None
+            st.session_state.waiting_for_second_operand = True
+        except (ValueError, ZeroDivisionError):
+            st.session_state.input = "Erro"
+
+    elif value == 'C':
+        st.session_state.input = '0'
+        st.session_state.first_operand = None
+        st.session_state.operator = None
+        st.session_state.waiting_for_second_operand = False
+
+# Layout dos botões em uma grade
+button_rows = [
+    ('7', '8', '9', '/'),
+    ('4', '5', '6', ' \\* '),
+    ('1', '2', '3', ' \\- '),
+    ('C', '0', '.', ' \\+ ')
+]
+
+for row in button_rows:
+    cols = st.columns(4)
+    for i, label in enumerate(row):
+        cols[i].button(label, on_click=handle_click, args=(label,), use_container_width=True)
+
+# Botão de igualdade separado para dar mais destaque
+st.button('=', on_click=handle_click, args=('=',), use_container_width=True) 
