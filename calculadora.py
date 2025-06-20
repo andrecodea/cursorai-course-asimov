@@ -46,7 +46,7 @@ def handle_click(value):
                 pass  # Impede múltiplos pontos decimais
             else:
                 st.session_state.input += value
-    
+
     elif value in ['+', '-', '*', '/']:
         # Se o usuário clicar em um operador quando um cálculo já pode ser feito,
         # calcula o resultado parcial antes de registrar o novo operador.
@@ -107,4 +107,4 @@ for row in button_rows:
         cols[i].button(label, on_click=handle_click, args=(label,), use_container_width=True)
 
 # Botão de igualdade separado para dar mais destaque
-st.button('=', on_click=handle_click, args=('=',), use_container_width=True) 
+st.button('=', on_click=handle_click, args=('=',), use_container_width=True)
